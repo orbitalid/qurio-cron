@@ -1,0 +1,22 @@
+name: qurio-tick
+# Tiap 5 menit: kirim pengingat ayat pagi yang udah jatuh tempo + cek order Scalev lunas yang belum dapat lisensi.
+# Endpoint aman dipanggil berulang (ada pembatas & anti-dobel di server), jadi nggak butuh secret.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+    - cron: '23 2 * * 1'   # keepalive mingguan
+  workflow_dispatch:
+permissions:
+  actions: write
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Panggil /api/cron/tick
+        run: curl -fsS -m 90 -A "qurio-cron" https://orbitalid.site/qurio/app/api/cron/tick || echo "tick gagal, coba lagi 5 menit lagi"
+      - name: Keepalive (GitHub matiin jadwal kalau repo sepi 60 hari)
+        if: github.event.schedule == '23 2 * * 1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/tick.yml/enable"
